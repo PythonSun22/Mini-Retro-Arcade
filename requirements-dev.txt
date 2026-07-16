@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Testing
+pytest>=8.0,<10.0
+
+# Browser packaging and local web server
+pygbag==0.9.3
