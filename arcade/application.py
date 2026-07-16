@@ -6,6 +6,8 @@ from arcade.state_manager import StateManager
 from states.main_menu_state import MainMenuState
 from states.placeholder_game_state import PlaceholderGameState
 from states.pause_state import PauseState
+from states.game_over_state import GameOverState
+from states.pong_state import PongState
 
 import asyncio
 
@@ -57,16 +59,20 @@ class Application:
             "main_menu",
             lambda manager: MainMenuState(manager),
         )
+
         self.state_manager.register(
             "pause",
             lambda manager: PauseState(manager),
         )
+
+        self.state_manager.register(
+            "game_over",
+            lambda manager: GameOverState(manager),
+        )
+
         self.state_manager.register(
             "pong",
-            lambda manager: PlaceholderGameState(
-                manager,
-                game_name="Pong",
-            ),
+            lambda manager: PongState(manager),
         )
 
         self.state_manager.register(
