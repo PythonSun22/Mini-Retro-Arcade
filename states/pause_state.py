@@ -1,6 +1,7 @@
 """Shared pause overlay state."""
 
 from __future__ import annotations
+from ui.menu_view import MenuView
 
 import pygame
 
@@ -21,9 +22,12 @@ class PauseState(BaseState):
         super().__init__(state_manager)
 
         self.selected_index = 0
-        self.title_font = pygame.font.Font(None, 68)
-        self.item_font = pygame.font.Font(None, 38)
-        self.help_font = pygame.font.Font(None, 25)
+        self.menu_view = MenuView(
+            title="Paused",
+            subtitle="Game suspended",
+            help_text="Escape resumes — Arrow keys and Enter select",
+            clear_background=False,
+        )
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -54,7 +58,6 @@ class PauseState(BaseState):
         del delta_time
 
     def render(self, surface: pygame.Surface) -> None:
-        width, height = surface.get_size()
 
         overlay = pygame.Surface(
             surface.get_size(),
@@ -63,45 +66,10 @@ class PauseState(BaseState):
         overlay.fill(self.OVERLAY_COLOR)
         surface.blit(overlay, (0, 0))
 
-        title = self.title_font.render(
-            "Paused",
-            True,
-            (245, 245, 250),
+        labels = [label for label, _ in self.MENU_ITEMS]
+        self.menu_view.render(
+            surface, 
+            labels, 
+            self.selected_index,
         )
-        title_rect = title.get_rect(
-            center=(width // 2, height // 2 - 110)
-        )
-        surface.blit(title, title_rect)
-
-        start_y = height // 2 - 20
-        spacing = 58
-
-        for index, (label, _) in enumerate(self.MENU_ITEMS):
-            is_selected = index == self.selected_index
-            prefix = "> " if is_selected else "  "
-
-            color = (
-                (255, 220, 100)
-                if is_selected
-                else (195, 200, 215)
-            )
-
-            item = self.item_font.render(
-                f"{prefix}{label}",
-                True,
-                color,
-            )
-            item_rect = item.get_rect(
-                center=(width // 2, start_y + index * spacing)
-            )
-            surface.blit(item, item_rect)
-
-        help_text = self.help_font.render(
-            "Escape resumes — Arrow keys and Enter select",
-            True,
-            (155, 160, 175),
-        )
-        help_rect = help_text.get_rect(
-            center=(width // 2, height - 55)
-        )
-        surface.blit(help_text, help_rect)
+        

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pygame
+from pygame import surface
 
 from ui.theme import ArcadeTheme, DEFAULT_THEME
 
@@ -18,11 +19,13 @@ class MenuView:
         subtitle: str,
         help_text: str,
         theme: ArcadeTheme = DEFAULT_THEME,
+        clear_background: bool = True,
     ) -> None:
         self.title = title
         self.subtitle = subtitle
         self.help_text = help_text
         self.theme = theme
+        self.clear_background = clear_background
 
         self.title_font = pygame.font.Font(None, 76)
         self.subtitle_font = pygame.font.Font(None, 28)
@@ -36,10 +39,11 @@ class MenuView:
         selected_index: int,
     ) -> None:
         """Render menu content onto the shared application surface."""
-        surface.fill(self.theme.background)
         width, height = surface.get_size()
 
-        self._draw_background(surface, width, height)
+        if self.clear_background:
+            surface.fill(self.theme.background)
+            self._draw_background(surface, width, height)
         self._draw_header(surface, width)
         self._draw_menu_panel(surface, width, height, labels, selected_index)
         self._draw_help(surface, width, height)
