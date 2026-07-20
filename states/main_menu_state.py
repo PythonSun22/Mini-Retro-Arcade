@@ -1,14 +1,15 @@
-"""Placeholder main menu state."""
+"""Main menu state."""
 
 from __future__ import annotations
 
 import pygame
 
 from states.base_state import BaseState
+from ui.menu_view import MenuView
 
 
 class MainMenuState(BaseState):
-    """Minimal menu used to verify state transitions."""
+    """Primary game-selection menu."""
 
     MENU_ITEMS = (
         ("Pong", "pong"),
@@ -20,9 +21,15 @@ class MainMenuState(BaseState):
         super().__init__(state_manager)
 
         self.selected_index = 0
-        self.title_font = pygame.font.Font(None, 64)
-        self.item_font = pygame.font.Font(None, 38)
-        self.help_font = pygame.font.Font(None, 26)
+        self.view = MenuView(
+            title="Minigame Arcade",
+            subtitle="SELECT A CABINET",
+            help_text="Arrow keys or W/S to select  •  Enter to launch",
+        )
+
+    def enter(self, data: dict[str, object] | None = None) -> None:
+        del data
+        self.selected_index = 0
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -55,45 +62,5 @@ class MainMenuState(BaseState):
         del delta_time
 
     def render(self, surface: pygame.Surface) -> None:
-        width, height = surface.get_size()
-
-        title = self.title_font.render(
-            "Minigame Arcade",
-            True,
-            (235, 235, 245),
-        )
-        title_rect = title.get_rect(center=(width // 2, 100))
-        surface.blit(title, title_rect)
-
-        start_y = 220
-        spacing = 60
-
-        for index, (label, _) in enumerate(self.MENU_ITEMS):
-            is_selected = index == self.selected_index
-            prefix = "> " if is_selected else "  "
-
-            color = (
-                (255, 220, 100)
-                if is_selected
-                else (190, 195, 210)
-            )
-
-            item = self.item_font.render(
-                f"{prefix}{label}",
-                True,
-                color,
-            )
-            item_rect = item.get_rect(
-                center=(width // 2, start_y + index * spacing)
-            )
-            surface.blit(item, item_rect)
-
-        help_text = self.help_font.render(
-            "Arrow keys or W/S to select — Enter to launch",
-            True,
-            (135, 140, 155),
-        )
-        help_rect = help_text.get_rect(
-            center=(width // 2, height - 55)
-        )
-        surface.blit(help_text, help_rect)
+        labels = [label for label, _ in self.MENU_ITEMS]
+        self.view.render(surface, labels, self.selected_index)
