@@ -6,6 +6,8 @@ from typing import Any
 
 import pygame
 
+from ui.menu_view import MenuView
+
 from states.base_state import BaseState
 
 
@@ -28,9 +30,14 @@ class GameOverState(BaseState):
         self.opponent_score = 0
         self.restart_state = "main_menu"
 
-        self.title_font = pygame.font.Font(None, 68)
-        self.result_font = pygame.font.Font(None, 42)
-        self.item_font = pygame.font.Font(None, 34)
+        self.menu_view = MenuView(
+            title="Game Complete",
+            subtitle="Final Result",
+            status_text="",
+            help_text="Arrow keys select — Enter confirms — Escape returns",
+        )
+
+        self.score_font = pygame.font.Font(None, 42)
 
     def enter(self, data: dict[str, Any] | None = None) -> None:
         data = data or {}
@@ -47,6 +54,15 @@ class GameOverState(BaseState):
         self.restart_state = str(
             data.get("restart_state", "main_menu")
         )
+
+        self.menu_view.title = f"{self.game_name} Complete"
+
+        if self.result == "player":
+            self.menu_view.status_text = "You Win"
+        elif self.result is None:
+            self.menu_view.status_text = "Match Complete"
+        else:
+            self.menu_view.status_text = "AI Wins"  
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -77,64 +93,23 @@ class GameOverState(BaseState):
         del delta_time
 
     def render(self, surface: pygame.Surface) -> None:
-        surface.fill((18, 20, 28))
+        labels = [label for label, _ in self.MENU_ITEMS]
+
+        self.menu_view.render(
+            surface,
+            labels,
+            self.selected_index,
+        )
 
         width, height = surface.get_size()
 
-        title = self.title_font.render(
-            f"{self.game_name} Complete",
-            True,
-            (240, 240, 248),
-        )
-        surface.blit(
-            title,
-            title.get_rect(center=(width // 2, 105)),
-        )
-
-        result_text = (
-            "You Win"
-            if self.result == "player"
-            else "AI Wins"
-        )
-        result = self.result_font.render(
-            result_text,
-            True,
-            (255, 220, 100),
-        )
-        surface.blit(
-            result,
-            result.get_rect(center=(width // 2, 185)),
-        )
-
-        score = self.result_font.render(
+        score = self.score_font.render(
             f"{self.player_score} - {self.opponent_score}",
             True,
-            (190, 195, 210),
+            self.menu_view.theme.text_secondary,
         )
+
         surface.blit(
             score,
-            score.get_rect(center=(width // 2, 240)),
+            score.get_rect(center=(width // 2, height // 2 - 85)),
         )
-
-        start_y = 340
-
-        for index, (label, _) in enumerate(self.MENU_ITEMS):
-            selected = index == self.selected_index
-            prefix = "> " if selected else "  "
-            color = (
-                (255, 220, 100)
-                if selected
-                else (190, 195, 210)
-            )
-
-            item = self.item_font.render(
-                f"{prefix}{label}",
-                True,
-                color,
-            )
-            surface.blit(
-                item,
-                item.get_rect(
-                    center=(width // 2, start_y + index * 55)
-                ),
-            )

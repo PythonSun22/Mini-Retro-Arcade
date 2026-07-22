@@ -25,6 +25,7 @@ class PauseState(BaseState):
         self.menu_view = MenuView(
             title="Paused",
             subtitle="Game suspended",
+            status_text="",
             help_text="Escape resumes — Arrow keys and Enter select",
             clear_background=False,
         )

@@ -17,18 +17,21 @@ class MenuView:
         self,
         title: str,
         subtitle: str,
+        status_text: str,
         help_text: str,
         theme: ArcadeTheme = DEFAULT_THEME,
         clear_background: bool = True,
     ) -> None:
         self.title = title
         self.subtitle = subtitle
+        self.status_text = status_text
         self.help_text = help_text
         self.theme = theme
         self.clear_background = clear_background
 
         self.title_font = pygame.font.Font(None, 76)
         self.subtitle_font = pygame.font.Font(None, 28)
+        self.status_font = pygame.font.Font(None, 38)
         self.item_font = pygame.font.Font(None, 38)
         self.help_font = pygame.font.Font(None, 24)
 
@@ -90,6 +93,14 @@ class MenuView:
             self.theme.accent_soft,
         )
         surface.blit(subtitle, subtitle.get_rect(center=(width // 2, 132)))
+
+        if self.status_text:
+            status = self.status_font.render(
+                self.status_text,
+                True,
+                self.theme.accent_soft,
+            )
+            surface.blit(status, status.get_rect(center=(width // 2, 170)))
 
     def _draw_menu_panel(
         self,

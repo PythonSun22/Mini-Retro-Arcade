@@ -24,6 +24,7 @@ class MainMenuState(BaseState):
         self.view = MenuView(
             title="Minigame Arcade",
             subtitle="SELECT A CABINET",
+            status_text="",
             help_text="Arrow keys or W/S to select  •  Enter to launch",
         )
 
