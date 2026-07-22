@@ -6,22 +6,18 @@ import pygame
 
 from games.pong.pong_world import PongWorld, RoundStatus
 from states.base_state import BaseState
+from ui.pong_view import PongView
 
 
 class PongState(BaseState):
     """Coordinates Pong input, world updates, rendering, and transitions."""
 
-    BACKGROUND_COLOR = (14, 16, 24)
-    FOREGROUND_COLOR = (235, 235, 245)
-    MUTED_COLOR = (145, 150, 165)
 
     def __init__(self, state_manager: object) -> None:
         super().__init__(state_manager)
 
         self.world = PongWorld()
-
-        self.score_font = pygame.font.Font(None, 64)
-        self.message_font = pygame.font.Font(None, 30)
+        self.view = PongView()
 
         self._move_up = False
         self._move_down = False
@@ -75,60 +71,9 @@ class PongState(BaseState):
             )
 
     def render(self, surface: pygame.Surface) -> None:
-        """Temporary reference rendering using immutable world data."""
-        surface.fill(self.BACKGROUND_COLOR)
-
+        """Delegate presentation using immutable world data."""
         snapshot = self.world.snapshot()
-        width, height = surface.get_size()
-
-        self._draw_center_line(surface, width, height)
-
-        pygame.draw.rect(
-            surface,
-            self.FOREGROUND_COLOR,
-            pygame.Rect(snapshot.player_paddle_bounds),
-        )
-        pygame.draw.rect(
-            surface,
-            self.FOREGROUND_COLOR,
-            pygame.Rect(snapshot.ai_paddle_bounds),
-        )
-        pygame.draw.rect(
-            surface,
-            self.FOREGROUND_COLOR,
-            pygame.Rect(snapshot.ball_bounds),
-        )
-
-        player_score = self.score_font.render(
-            str(snapshot.player_score),
-            True,
-            self.FOREGROUND_COLOR,
-        )
-        ai_score = self.score_font.render(
-            str(snapshot.ai_score),
-            True,
-            self.FOREGROUND_COLOR,
-        )
-
-        surface.blit(
-            player_score,
-            player_score.get_rect(center=(width // 2 - 90, 55)),
-        )
-        surface.blit(
-            ai_score,
-            ai_score.get_rect(center=(width // 2 + 90, 55)),
-        )
-
-        if snapshot.show_serve_prompt:
-            prompt = self.message_font.render(
-                "Press Space or Enter to serve",
-                True,
-                self.MUTED_COLOR,
-            )
-            surface.blit(
-                prompt,
-                prompt.get_rect(center=(width // 2, height - 48)),
-            )
+        self.view.render(surface, snapshot)
 
     def _handle_key_down(self, key: int) -> None:
         if key in (pygame.K_w, pygame.K_UP):
@@ -157,20 +102,3 @@ class PongState(BaseState):
         self._move_up = False
         self._move_down = False
         self.world.set_player_direction(0.0)
-
-    @staticmethod
-    def _draw_center_line(
-        surface: pygame.Surface,
-        width: int,
-        height: int,
-    ) -> None:
-        segment_height = 18
-        gap = 14
-        x = width // 2 - 2
-
-        for y in range(0, height, segment_height + gap):
-            pygame.draw.rect(
-                surface,
-                (90, 95, 110),
-                pygame.Rect(x, y, 4, segment_height),
-            )
