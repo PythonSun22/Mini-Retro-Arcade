@@ -8,6 +8,7 @@ from states.placeholder_game_state import PlaceholderGameState
 from states.pause_state import PauseState
 from states.game_over_state import GameOverState
 from states.pong_state import PongState
+from states.snake_state import SnakeState
 
 import asyncio
 
@@ -77,10 +78,7 @@ class Application:
 
         self.state_manager.register(
             "snake",
-            lambda manager: PlaceholderGameState(
-                manager,
-                game_name="Snake",
-            ),
+            lambda manager: SnakeState(manager),
         )
 
         self.state_manager.register(
