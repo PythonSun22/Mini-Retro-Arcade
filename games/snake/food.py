@@ -9,6 +9,6 @@ from games.snake.grid import GridPosition
 
 @dataclass
 class Food:
-    """Stores the current logical food position."""
+    """Own only the logical grid position of the current food."""
 
-    position: GridPosition
+    position: GridPosition | None
