@@ -9,16 +9,19 @@ import pygame
 from arcade.state_manager import StateManager
 from games.pong.pong_result import PongResult
 from games.snake.snake_result import SnakeResult
+from games.space_invaders.space_invaders_result import SpaceInvadersResult
 from states.game_over_state import GameOverState, ResultPresenterRegistry
 from states.main_menu_state import MainMenuState
 from states.pause_state import PauseState
-from states.placeholder_game_state import PlaceholderGameState
 from states.pong_state import PongState
 from states.snake_state import SnakeState
+from states.space_invaders_state import SpaceInvadersState
 from ui.pong_result_view import PongResultView
 from ui.pong_view import PongView
 from ui.snake_result_view import SnakeResultView
 from ui.snake_view import SnakeView
+from ui.space_invaders_result_view import SpaceInvadersResultView
+from ui.space_invaders_view import SpaceInvadersView
 
 
 class Application:
@@ -43,8 +46,10 @@ class Application:
 
         self.pong_view = PongView()
         self.snake_view = SnakeView()
+        self.space_invaders_view = SpaceInvadersView()
         self.pong_result_view = PongResultView()
         self.snake_result_view = SnakeResultView()
+        self.space_invaders_result_view = SpaceInvadersResultView()
         self.result_presenter_registry = self._create_result_presenter_registry()
 
         self._register_states()
@@ -70,6 +75,7 @@ class Application:
         registry = ResultPresenterRegistry()
         registry.register(PongResult, self.pong_result_view)
         registry.register(SnakeResult, self.snake_result_view)
+        registry.register(SpaceInvadersResult, self.space_invaders_result_view)
         return registry
 
     def _register_states(self) -> None:
@@ -110,9 +116,9 @@ class Application:
 
         self.state_manager.register(
             "space_invaders",
-            lambda manager: PlaceholderGameState(
+            lambda manager: SpaceInvadersState(
                 manager,
-                game_name="Space Invaders",
+                view=self.space_invaders_view,
             ),
         )
 
