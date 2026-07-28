@@ -2,22 +2,36 @@
 
 from __future__ import annotations
 
+from typing import Protocol
+
 import pygame
 
+from games.pong.pong_result import PongResult
 from games.pong.pong_world import PongWorld, RoundStatus
 from states.base_state import BaseState
-from ui.pong_view import PongView
+from states.game_over_state import GameOverContext
+
+
+class PongGameplayView(Protocol):
+    """Presentation dependency supplied by application bootstrap."""
+
+    def render(self, surface: pygame.Surface, snapshot: object) -> None:
+        ...
 
 
 class PongState(BaseState):
     """Coordinates Pong input, world updates, rendering, and transitions."""
 
 
-    def __init__(self, state_manager: object) -> None:
+    def __init__(
+        self,
+        state_manager: object,
+        view: PongGameplayView,
+    ) -> None:
         super().__init__(state_manager)
 
         self.world = PongWorld()
-        self.view = PongView()
+        self.view = view
 
         self._move_up = False
         self._move_down = False
@@ -59,14 +73,18 @@ class PongState(BaseState):
         ):
             self._game_over_transition_sent = True
 
+            result = PongResult.create(
+                player_score=self.world.player_score,
+                ai_score=self.world.ai_score,
+                match_result=self.world.match_result,
+            )
             self.state_manager.replace(
                 "game_over",
                 {
-                    "game_name": "Pong",
-                    "result": self.world.match_result,
-                    "player_score": self.world.player_score,
-                    "opponent_score": self.world.ai_score,
-                    "restart_state": "pong",
+                    "context": GameOverContext(
+                        result=result,
+                        restart_state="pong",
+                    ),
                 },
             )
 

@@ -2,26 +2,42 @@
 
 from __future__ import annotations
 
+from typing import Protocol
+
 import pygame
 
 from games.snake.direction import Direction
-from games.snake.snake_world import SnakeWorld
+from games.snake.snake_result import SnakeResult
+from games.snake.snake_world import MatchStatus, SnakeWorld
 from states.base_state import BaseState
-from ui.snake_view import SnakeView
+from states.game_over_state import GameOverContext
+
+
+class SnakeGameplayView(Protocol):
+    """Presentation dependency supplied by application bootstrap."""
+
+    def render(self, surface: pygame.Surface, snapshot: object) -> None:
+        ...
 
 
 class SnakeState(BaseState):
     """Translate input, update SnakeWorld, and delegate presentation."""
 
-    def __init__(self, state_manager: object) -> None:
+    def __init__(
+        self,
+        state_manager: object,
+        view: SnakeGameplayView,
+    ) -> None:
         super().__init__(state_manager)
 
         self.world = SnakeWorld()
-        self.view = SnakeView()
+        self.view = view
+        self._game_over_transition_sent = False
 
     def enter(self, data: dict[str, object] | None = None) -> None:
         del data
         self.world.restart()
+        self._game_over_transition_sent = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -39,6 +55,27 @@ class SnakeState(BaseState):
 
     def update(self, delta_time: float) -> None:
         self.world.update(delta_time)
+
+        if (
+            self.world.match_status is MatchStatus.COMPLETED
+            and not self._game_over_transition_sent
+        ):
+            self._game_over_transition_sent = True
+            result = SnakeResult.create(
+                score=self.world.score,
+                speed_level=self.world.speed_level,
+                completion_reason=self.world.game_over_reason,
+                outcome=self.world.match_result,
+            )
+            self.state_manager.replace(
+                "game_over",
+                {
+                    "context": GameOverContext(
+                        result=result,
+                        restart_state="snake",
+                    ),
+                },
+            )
 
     def render(self, surface: pygame.Surface) -> None:
         """Delegate presentation using immutable world data."""

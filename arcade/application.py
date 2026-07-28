@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
-from arcade.state_manager import StateManager
-from states.main_menu_state import MainMenuState
-from states.placeholder_game_state import PlaceholderGameState
-from states.pause_state import PauseState
-from states.game_over_state import GameOverState
-from states.pong_state import PongState
-from states.snake_state import SnakeState
-
 import asyncio
 
 import pygame
+
+from arcade.state_manager import StateManager
+from games.pong.pong_result import PongResult
+from games.snake.snake_result import SnakeResult
+from states.game_over_state import GameOverState, ResultPresenterRegistry
+from states.main_menu_state import MainMenuState
+from states.pause_state import PauseState
+from states.placeholder_game_state import PlaceholderGameState
+from states.pong_state import PongState
+from states.snake_state import SnakeState
+from ui.pong_result_view import PongResultView
+from ui.pong_view import PongView
+from ui.snake_result_view import SnakeResultView
+from ui.snake_view import SnakeView
 
 
 class Application:
@@ -35,10 +41,15 @@ class Application:
         self.state_manager = StateManager()
         self.running = True
 
+        self.pong_view = PongView()
+        self.snake_view = SnakeView()
+        self.pong_result_view = PongResultView()
+        self.snake_result_view = SnakeResultView()
+        self.result_presenter_registry = self._create_result_presenter_registry()
+
         self._register_states()
         self.state_manager.replace("main_menu")
 
-        
     async def run(self) -> None:
         """Run the application until a shutdown event is received."""
         try:
@@ -54,6 +65,13 @@ class Application:
         finally:
             self.shutdown()
 
+    def _create_result_presenter_registry(self) -> ResultPresenterRegistry:
+        """Create the application-scoped typed result presenter registry."""
+        registry = ResultPresenterRegistry()
+        registry.register(PongResult, self.pong_result_view)
+        registry.register(SnakeResult, self.snake_result_view)
+        return registry
+
     def _register_states(self) -> None:
         """Register all states available in the arcade shell."""
         self.state_manager.register(
@@ -68,17 +86,26 @@ class Application:
 
         self.state_manager.register(
             "game_over",
-            lambda manager: GameOverState(manager),
+            lambda manager: GameOverState(
+                manager,
+                presenter_registry=self.result_presenter_registry,
+            ),
         )
 
         self.state_manager.register(
             "pong",
-            lambda manager: PongState(manager),
+            lambda manager: PongState(
+                manager,
+                view=self.pong_view,
+            ),
         )
 
         self.state_manager.register(
             "snake",
-            lambda manager: SnakeState(manager),
+            lambda manager: SnakeState(
+                manager,
+                view=self.snake_view,
+            ),
         )
 
         self.state_manager.register(

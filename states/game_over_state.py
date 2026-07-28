@@ -1,68 +1,119 @@
-"""Shared game-over state."""
+"""Shared game-over lifecycle state."""
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from typing import Protocol
 
 import pygame
-
-from ui.menu_view import MenuView
 
 from states.base_state import BaseState
 
 
+GAME_OVER_ACTIONS: tuple[tuple[str, str], ...] = (
+    ("Restart", "restart"),
+    ("Return to Main Menu", "main_menu"),
+)
+
+
+class ResultPresenter(Protocol):
+    """Structural frontend contract for one game-specific result presenter."""
+
+    def render(
+        self,
+        surface: pygame.Surface,
+        result: object,
+        actions: tuple[tuple[str, str], ...],
+        selected_index: int,
+    ) -> None:
+        """Render one completed-game result and the shared action choices."""
+        ...
+
+
+class MissingResultPresenterError(LookupError):
+    """Raised when no presenter is registered for a concrete result type."""
+
+
+class ResultPresenterRegistry:
+    """Small application-level registry keyed by exact immutable result type."""
+
+    def __init__(self) -> None:
+        self._presenters: dict[type[object], ResultPresenter] = {}
+
+    def register(
+        self,
+        result_type: type[object],
+        presenter: ResultPresenter,
+    ) -> None:
+        if result_type in self._presenters:
+            raise ValueError(
+                f"A result presenter is already registered for "
+                f"{result_type.__module__}.{result_type.__qualname__}."
+            )
+        self._presenters[result_type] = presenter
+
+    def get_presenter(self, result: object) -> ResultPresenter:
+        """Return the presenter registered for exactly ``type(result)``."""
+        result_type = type(result)
+        try:
+            return self._presenters[result_type]
+        except KeyError as error:
+            qualified_name = (
+                f"{result_type.__module__}.{result_type.__qualname__}"
+            )
+            raise MissingResultPresenterError(
+                "No result presenter is registered for concrete result type "
+                f"{qualified_name}. Register it during application bootstrap "
+                "before entering GameOverState."
+            ) from error
+
+
+@dataclass(frozen=True)
+class GameOverContext:
+    """Immutable result and transition data required by GameOverState."""
+
+    result: object
+    restart_state: str
+    menu_state: str = "main_menu"
+
+    def __post_init__(self) -> None:
+        if not self.restart_state.strip():
+            raise ValueError("restart_state cannot be empty.")
+        if not self.menu_state.strip():
+            raise ValueError("menu_state cannot be empty.")
+
+
 class GameOverState(BaseState):
-    """Displays final match data and routes restart or menu actions."""
+    """Coordinate shared completion input, routing, and presenter delegation."""
 
-    MENU_ITEMS = (
-        ("Restart", "restart"),
-        ("Return to Main Menu", "main_menu"),
-    )
-
-    def __init__(self, state_manager: object) -> None:
+    def __init__(
+        self,
+        state_manager: object,
+        presenter_registry: ResultPresenterRegistry,
+    ) -> None:
         super().__init__(state_manager)
-
+        self._presenter_registry = presenter_registry
+        self._context: GameOverContext | None = None
+        self._presenter: ResultPresenter | None = None
         self.selected_index = 0
 
-        self.game_name = "Game"
-        self.result: str | None = None
-        self.player_score = 0
-        self.opponent_score = 0
-        self.restart_state = "main_menu"
+    def enter(self, data: dict[str, object] | None = None) -> None:
+        if data is None:
+            raise ValueError("GameOverState requires transition data.")
 
-        self.menu_view = MenuView(
-            title="Game Complete",
-            subtitle="Final Result",
-            status_text="",
-            help_text="Arrow keys select — Enter confirms — Escape returns",
-        )
+        context = data.get("context")
+        if not isinstance(context, GameOverContext):
+            raise TypeError("GameOverState requires a GameOverContext.")
 
-        self.score_font = pygame.font.Font(None, 42)
-
-    def enter(self, data: dict[str, Any] | None = None) -> None:
-        data = data or {}
-
+        # Resolve only by concrete result type. The state never inspects fields.
+        presenter = self._presenter_registry.get_presenter(context.result)
+        self._context = context
+        self._presenter = presenter
         self.selected_index = 0
-        self.game_name = str(data.get("game_name", "Game"))
-        self.result = (
-            str(data["result"])
-            if data.get("result") is not None
-            else None
-        )
-        self.player_score = int(data.get("player_score", 0))
-        self.opponent_score = int(data.get("opponent_score", 0))
-        self.restart_state = str(
-            data.get("restart_state", "main_menu")
-        )
 
-        self.menu_view.title = f"{self.game_name} Complete"
-
-        if self.result == "player":
-            self.menu_view.status_text = "You Win"
-        elif self.result is None:
-            self.menu_view.status_text = "Match Complete"
-        else:
-            self.menu_view.status_text = "AI Wins"  
+    def exit(self) -> None:
+        self._context = None
+        self._presenter = None
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -71,45 +122,47 @@ class GameOverState(BaseState):
         if event.key in (pygame.K_UP, pygame.K_w):
             self.selected_index = (
                 self.selected_index - 1
-            ) % len(self.MENU_ITEMS)
-
+            ) % len(GAME_OVER_ACTIONS)
         elif event.key in (pygame.K_DOWN, pygame.K_s):
             self.selected_index = (
                 self.selected_index + 1
-            ) % len(self.MENU_ITEMS)
-
+            ) % len(GAME_OVER_ACTIONS)
         elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
-            _, action = self.MENU_ITEMS[self.selected_index]
-
-            if action == "restart":
-                self.state_manager.replace(self.restart_state)
-            else:
-                self.state_manager.replace("main_menu")
-
+            self._activate_selected_action()
         elif event.key == pygame.K_ESCAPE:
-            self.state_manager.replace("main_menu")
+            self._return_to_menu()
 
     def update(self, delta_time: float) -> None:
         del delta_time
 
     def render(self, surface: pygame.Surface) -> None:
-        labels = [label for label, _ in self.MENU_ITEMS]
-
-        self.menu_view.render(
+        context = self._require_context()
+        presenter = self._require_presenter()
+        presenter.render(
             surface,
-            labels,
+            context.result,
+            GAME_OVER_ACTIONS,
             self.selected_index,
         )
 
-        width, height = surface.get_size()
+    def _activate_selected_action(self) -> None:
+        _, action = GAME_OVER_ACTIONS[self.selected_index]
+        if action == "restart":
+            context = self._require_context()
+            self.state_manager.replace(context.restart_state)
+            return
+        self._return_to_menu()
 
-        score = self.score_font.render(
-            f"{self.player_score} - {self.opponent_score}",
-            True,
-            self.menu_view.theme.text_secondary,
-        )
+    def _return_to_menu(self) -> None:
+        context = self._require_context()
+        self.state_manager.replace(context.menu_state)
 
-        surface.blit(
-            score,
-            score.get_rect(center=(width // 2, height // 2 - 85)),
-        )
+    def _require_context(self) -> GameOverContext:
+        if self._context is None:
+            raise RuntimeError("GameOverState has not received its context.")
+        return self._context
+
+    def _require_presenter(self) -> ResultPresenter:
+        if self._presenter is None:
+            raise RuntimeError("GameOverState has not resolved its presenter.")
+        return self._presenter
