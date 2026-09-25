@@ -29,10 +29,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install Pygbag
-        run: python -m pip install pygbag
+        run: python -m pip install pygbag==0.9.3
 
       - name: Build browser game
-        run: python -m pygbag --build .
+        run: python -m pygbag --build --template web/arcade.tmpl .
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

@@ -52,7 +52,7 @@ class PongWorld:
     PADDLE_MARGIN = 42
 
     PLAYER_SPEED = 430.0
-    AI_SPEED = 335.0
+    AI_SPEED = 285.0
 
     BALL_SIZE = 18
     BALL_SPEED_X = 390.0

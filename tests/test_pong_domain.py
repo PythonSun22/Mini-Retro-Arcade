@@ -239,7 +239,66 @@ def test_ai_respects_maximum_movement_speed() -> None:
     )
 
     assert paddle.velocity_y == 300.0
-    assert paddle.y == pytest.approx(350.0)
+    assert 200.0 < paddle.y < 350.0
+
+
+def test_ai_tracks_old_target_until_reaction_interval_elapses() -> None:
+    paddle = PongWorld().ai_paddle
+    paddle.react_to_ball(500.0, 0.0)
+    initial_y = paddle.y
+
+    # A sudden direction change should not cause an immediate CPU reaction.
+    paddle.react_to_ball(0.0, 0.09)
+    assert initial_y < paddle.y < initial_y + paddle.speed * 0.09
+    paddle.react_to_ball(0.0, 0.08)
+    previous_velocity = paddle.velocity_y
+    assert previous_velocity > 0.0
+
+    paddle.react_to_ball(0.0, 0.011)
+    assert 0.0 < paddle.velocity_y < previous_velocity
+
+
+def test_ai_reset_discards_previous_target_and_reaction_timer() -> None:
+    paddle = PongWorld().ai_paddle
+    paddle.react_to_ball(500.0, 0.0)
+    paddle.react_to_ball(500.0, 0.17)
+    paddle.reset(200.0)
+
+    assert paddle.velocity_y == 0.0
+    paddle.react_to_ball(0.0, 0.01)
+    assert paddle.velocity_y < 0.0
+    paddle.react_to_ball(500.0, 0.02)
+    assert paddle.velocity_y < 0.0
+
+
+def test_ai_accelerates_and_reverses_gradually() -> None:
+    paddle = PongWorld().ai_paddle
+    paddle.react_to_ball(500.0, 0.0)
+    for _ in range(24):
+        previous_velocity = paddle.velocity_y
+        paddle.react_to_ball(500.0, 1.0 / 120.0)
+        assert abs(paddle.velocity_y - previous_velocity) <= 1800.0 / 120.0 + 1e-8
+        assert abs(paddle.velocity_y) <= 285.0
+    assert paddle.velocity_y == pytest.approx(285.0)
+
+    for _ in range(60):
+        previous_velocity = paddle.velocity_y
+        paddle.react_to_ball(0.0, 1.0 / 120.0)
+        assert abs(paddle.velocity_y - previous_velocity) <= 1800.0 / 120.0 + 1e-8
+    assert paddle.velocity_y < 0.0
+
+
+@pytest.mark.parametrize('fps', [30, 60, 144])
+def test_ai_settles_at_target_without_oscillation(fps: int) -> None:
+    paddle = PongWorld().ai_paddle
+    target = 400.0
+    positions = []
+    for _ in range(fps * 3):
+        paddle.react_to_ball(target, 1.0 / fps)
+        positions.append(paddle.center_y)
+    assert abs(target - paddle.center_y) <= paddle.tracking_dead_zone + 0.1
+    assert abs(paddle.velocity_y) < 0.1
+    assert all(a <= b + 1e-8 for a, b in zip(positions, positions[1:]))
 
 
 def test_ai_stops_inside_tracking_dead_zone() -> None:
