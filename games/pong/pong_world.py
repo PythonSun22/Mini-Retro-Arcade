@@ -57,6 +57,7 @@ class PongWorld:
     BALL_SIZE = 18
     BALL_SPEED_X = 390.0
     BALL_SPEED_Y = 310.0
+    RALLY_SPEED_MULTIPLIER = 1.15
 
     DEFAULT_WINNING_SCORE = 5
 
@@ -155,17 +156,25 @@ class PongWorld:
         self.rules.resolve_wall_collision(self.ball)
 
         if self.ball.velocity_x < 0.0:
-            self.rules.resolve_paddle_collision(
+            paddle_hit = self.rules.resolve_paddle_collision(
                 self.ball,
                 self.player_paddle,
                 horizontal_direction=1,
             )
         else:
-            self.rules.resolve_paddle_collision(
+            paddle_hit = self.rules.resolve_paddle_collision(
                 self.ball,
                 self.ai_paddle,
                 horizontal_direction=-1,
             )
+
+        if paddle_hit:
+            if not self._rally_speed_boosted:
+                self.ball.velocity_x *= self.RALLY_SPEED_MULTIPLIER
+                self._rally_speed_boosted = True
+            # Collision rules recalculate vertical speed from the impact point.
+            # Apply the rally multiplier to that fresh value on every paddle hit.
+            self.ball.velocity_y *= self.RALLY_SPEED_MULTIPLIER
 
         score_result = self.rules.detect_score(self.ball)
 
@@ -252,6 +261,7 @@ class PongWorld:
         self._reset_ball_to_center()
 
     def _reset_ball_to_center(self) -> None:
+        self._rally_speed_boosted = False
         centered_x = (self.WIDTH - self.BALL_SIZE) / 2.0
         centered_y = (self.HEIGHT - self.BALL_SIZE) / 2.0
 

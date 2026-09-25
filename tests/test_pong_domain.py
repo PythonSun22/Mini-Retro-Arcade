@@ -357,6 +357,44 @@ def test_ai_scores_when_ball_leaves_left_side(
     assert result.player_scored is False
 
 
+@pytest.mark.parametrize('first_side', ['player', 'ai'])
+def test_first_paddle_hit_boosts_rally_without_compounding(first_side: str) -> None:
+    world = PongWorld()
+    world.start_serve()
+    assert abs(world.ball.velocity_x) == world.BALL_SPEED_X
+    assert abs(world.ball.velocity_y) == world.BALL_SPEED_Y * 0.5
+
+    sides = [first_side, 'ai' if first_side == 'player' else 'player', first_side]
+    for side in sides:
+        paddle = world.player_paddle if side == 'player' else world.ai_paddle
+        world.ball.x = paddle.x
+        world.ball.y = paddle.center_y + paddle.height * 0.25 - world.ball.size / 2
+        world.ball.velocity_x = abs(world.ball.velocity_x) * (-1 if side == 'player' else 1)
+        world.update(0.0)
+        assert abs(world.ball.velocity_x) == pytest.approx(world.BALL_SPEED_X * 1.15)
+        assert world.ball.velocity_y == pytest.approx(world.BALL_SPEED_Y * 0.5 * 1.15)
+
+    world.ball.y = -1.0
+    world.ball.velocity_y = -abs(world.ball.velocity_y)
+    world.update(0.0)
+    assert world.ball.velocity_y == pytest.approx(world.BALL_SPEED_Y * 0.5 * 1.15)
+
+    # Scoring restores serve speed, and the next rally can earn its own boost.
+    world.ball.x = world.WIDTH + 1.0
+    world.update(0.0)
+    world.start_serve()
+    assert abs(world.ball.velocity_x) == world.BALL_SPEED_X
+    world.ball.x = world.player_paddle.x
+    world.ball.y = world.player_paddle.y
+    world.ball.velocity_x = -world.BALL_SPEED_X
+    world.update(0.0)
+    assert world.ball.velocity_x == pytest.approx(world.BALL_SPEED_X * 1.15)
+
+    world.restart_match()
+    world.start_serve()
+    assert abs(world.ball.velocity_x) == world.BALL_SPEED_X
+
+
 def test_serve_velocity_can_be_deterministic() -> None:
     rules = PongRules(
         playfield_width=960,
